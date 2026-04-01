@@ -24,20 +24,58 @@
         </div>
     </div>
 
-    <!-- 右栏：AI 反思 -->
-    <div class="reflection-section" id="reflection-section">
-        <h2>AI 每日反思</h2>
-        <div id="reflection-content">
-            <button class="btn btn-secondary" id="btn-reflect" onclick="generateReflection()">
-                生成每日反思
-            </button>
-        </div>
-    </div>
+    <!-- 右栏：引导回顾 + 建议 -->
+    <div class="review-panel" id="review-panel">
 
+        <!-- 状态1：未开始 -->
+        <div id="review-start">
+            <h2 class="panel-title">💬 每日引导回顾</h2>
+            <p class="panel-desc">说说今天你想解决什么问题？AI 会引导你深入回忆，然后给出具体建议。</p>
+            <textarea
+                id="problem-input"
+                class="problem-input"
+                rows="3"
+                placeholder="例如：我最近和朋友关系有点紧张，不知道怎么处理…"></textarea>
+            <button class="btn btn-primary btn-block" onclick="startReview()">开始回顾</button>
+        </div>
+
+        <!-- 状态2：对话中 -->
+        <div id="review-chat" style="display:none">
+            <div class="chat-header">
+                <h2 class="panel-title">💬 引导回顾中</h2>
+                <span class="chat-problem" id="chat-problem-label"></span>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-area">
+                <textarea
+                    id="chat-input"
+                    class="chat-input"
+                    rows="2"
+                    placeholder="输入你的回答…"
+                    onkeydown="handleChatKey(event)"></textarea>
+                <div class="chat-actions">
+                    <button class="btn btn-secondary" onclick="sendMessage()">发送</button>
+                    <button class="btn btn-primary" onclick="finishReview()">生成建议 →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 状态3：建议结果 -->
+        <div id="review-result" style="display:none">
+            <h2 class="panel-title">✨ AI 建议</h2>
+            <div class="result-categories" id="result-categories"></div>
+            <div class="solution-card" id="solution-content"></div>
+            <button class="btn btn-secondary btn-block" style="margin-top:14px" onclick="resetReview()">重新回顾</button>
+        </div>
+
+    </div>
 </div>
 
 <script>
 const currentDate = '{{ date }}';
-document.addEventListener('DOMContentLoaded', () => loadActivities(currentDate));
+document.addEventListener('DOMContentLoaded', () => {
+    loadActivities(currentDate);
+    loadExistingReview(currentDate);
+});
 </script>
 {% endblock %}

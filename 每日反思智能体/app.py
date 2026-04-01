@@ -3,7 +3,8 @@ from datetime import date, timedelta
 from models import (
     init_db, insert_activity, get_activities_by_date, get_activities_by_range,
     get_activity_by_id, update_activity, delete_activity,
-    save_reflection, get_reflection
+    save_reflection, get_reflection,
+    create_review_session, add_review_message, get_review_session, complete_review_session
 )
 from config import SECRET_KEY
 
@@ -118,6 +119,99 @@ def api_generate_reflection(day):
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
+
+
+@app.route('/api/review/<day>/start', methods=['POST'])
+def api_review_start(day):
+    """开始引导回顾：用户说出问题，AI 给出第一个引导问题"""
+    data = request.get_json()
+    user_problem = data.get('problem', '').strip()
+    if not user_problem:
+        return jsonify({'error': '请先描述你想解决的问题'}), 400
+
+    activities = get_activities_by_date(day)
+    session_id = create_review_session(day, user_problem)
+
+    try:
+        from ai_service import start_guided_review
+        ai_question = start_guided_review(activities, user_problem)
+        add_review_message(session_id, 'assistant', ai_question)
+        return jsonify({'session_id': session_id, 'message': ai_question})
+    except Exception as e:
+        return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
+
+
+@app.route('/api/review/<day>/message', methods=['POST'])
+def api_review_message(day):
+    """用户发送消息，AI 继续引导追问"""
+    data = request.get_json()
+    user_message = data.get('message', '').strip()
+    if not user_message:
+        return jsonify({'error': '消息不能为空'}), 400
+
+    session = get_review_session(day)
+    if not session:
+        return jsonify({'error': '请先开始回顾会话'}), 404
+    if session['status'] == 'completed':
+        return jsonify({'error': '本次回顾已结束'}), 400
+
+    add_review_message(session['id'], 'user', user_message)
+
+    activities = get_activities_by_date(day)
+    messages = session['messages'] + [{'role': 'user', 'content': user_message}]
+
+    try:
+        from ai_service import continue_guided_review
+        ai_reply = continue_guided_review(activities, messages, session['user_problem'])
+        add_review_message(session['id'], 'assistant', ai_reply)
+        return jsonify({'message': ai_reply})
+    except Exception as e:
+        return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
+
+
+@app.route('/api/review/<day>/finish', methods=['POST'])
+def api_review_finish(day):
+    """结束回顾，使用 RAG 生成最终建议"""
+    session = get_review_session(day)
+    if not session:
+        return jsonify({'error': '请先开始回顾会话'}), 404
+
+    complete_review_session(session['id'])
+
+    activities = get_activities_by_date(day)
+
+    try:
+        from ai_service import generate_solution
+        from rag_service import build_rag_context
+        from models import get_db
+
+        conn = get_db()
+        rag = build_rag_context(session['user_problem'], day, conn)
+        conn.close()
+
+        solution = generate_solution(
+            activities=activities,
+            messages=session['messages'],
+            user_problem=session['user_problem'],
+            knowledge_context=rag['knowledge'],
+            history_context=rag['history']
+        )
+        save_reflection(day, f"回顾问题：{session['user_problem']}", solution)
+        return jsonify({
+            'solution': solution,
+            'categories': rag['categories']
+        })
+    except Exception as e:
+        return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
+
+
+@app.route('/api/review/<day>', methods=['GET'])
+def api_review_get(day):
+    """获取当天的回顾会话（如果存在）"""
+    session = get_review_session(day)
+    if not session:
+        return jsonify(None)
+    return jsonify(session)
 
 
 @app.route('/api/trends', methods=['GET'])

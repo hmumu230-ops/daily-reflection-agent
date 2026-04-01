@@ -259,3 +259,154 @@ function escapeHtml(str) {
 
 // Auto-init analysis page
 document.addEventListener('DOMContentLoaded', initAnalysis);
+
+// --- Guided Review ---
+
+let reviewSessionId = null;
+
+async function loadExistingReview(date) {
+    const res = await fetch('/api/review/' + date);
+    const session = await res.json();
+    if (!session) return;
+
+    if (session.status === 'completed') {
+        // 已完成：显示最后一条 AI 建议（从反思中读取）
+        const ref = await fetch('/api/reflect/' + date).then(r => r.json());
+        if (ref && ref.reflection) {
+            showResult(ref.reflection, []);
+        }
+    } else if (session.messages && session.messages.length > 0) {
+        // 进行中：恢复对话
+        reviewSessionId = session.id;
+        document.getElementById('review-start').style.display = 'none';
+        document.getElementById('review-chat').style.display = 'block';
+        document.getElementById('chat-problem-label').textContent = session.user_problem;
+        const container = document.getElementById('chat-messages');
+        container.innerHTML = '';
+        for (const msg of session.messages) {
+            appendBubble(msg.content, msg.role === 'user' ? 'user' : 'ai');
+        }
+    }
+}
+
+async function startReview() {
+    const problem = document.getElementById('problem-input').value.trim();
+    if (!problem) {
+        alert('请先描述你想解决的问题');
+        return;
+    }
+
+    const btn = document.querySelector('#review-start .btn-primary');
+    btn.textContent = 'AI 思考中…';
+    btn.disabled = true;
+
+    const res = await fetch(`/api/review/${currentDate}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problem })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+        alert(data.error);
+        btn.textContent = '开始回顾';
+        btn.disabled = false;
+        return;
+    }
+
+    reviewSessionId = data.session_id;
+    document.getElementById('review-start').style.display = 'none';
+    document.getElementById('review-chat').style.display = 'block';
+    document.getElementById('chat-problem-label').textContent = problem;
+
+    const container = document.getElementById('chat-messages');
+    container.innerHTML = '';
+    appendBubble(data.message, 'ai');
+}
+
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = '';
+    appendBubble(message, 'user');
+
+    const thinking = appendBubble('思考中…', 'ai');
+
+    const res = await fetch(`/api/review/${currentDate}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+    });
+    const data = await res.json();
+
+    thinking.remove();
+
+    if (data.error) {
+        appendBubble('出错了：' + data.error, 'ai');
+        return;
+    }
+    appendBubble(data.message, 'ai');
+}
+
+function handleChatKey(e) {
+    // Ctrl/Cmd + Enter 发送
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        sendMessage();
+    }
+}
+
+async function finishReview() {
+    const btn = document.querySelector('#review-chat .btn-primary');
+    btn.textContent = 'AI 分析中…';
+    btn.disabled = true;
+
+    const res = await fetch(`/api/review/${currentDate}/finish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+
+    btn.textContent = '生成建议 →';
+    btn.disabled = false;
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    document.getElementById('review-chat').style.display = 'none';
+    showResult(data.solution, data.categories || []);
+}
+
+function showResult(solution, categories) {
+    document.getElementById('review-result').style.display = 'block';
+    document.getElementById('review-start').style.display = 'none';
+    document.getElementById('review-chat').style.display = 'none';
+
+    const catEl = document.getElementById('result-categories');
+    catEl.innerHTML = categories.map(c =>
+        `<span class="result-category-tag">${c}</span>`
+    ).join('');
+
+    document.getElementById('solution-content').textContent = solution;
+}
+
+function resetReview() {
+    reviewSessionId = null;
+    document.getElementById('review-result').style.display = 'none';
+    document.getElementById('review-start').style.display = 'block';
+    document.getElementById('problem-input').value = '';
+}
+
+function appendBubble(text, type) {
+    const container = document.getElementById('chat-messages');
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${type}`;
+    bubble.textContent = text;
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+    return bubble;
+}

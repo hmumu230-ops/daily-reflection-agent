@@ -33,6 +33,23 @@ def init_db():
             reflection TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS review_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL UNIQUE,
+            user_problem TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'in_progress',
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS review_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (session_id) REFERENCES review_sessions(id)
+        );
     ''')
     conn.close()
 
@@ -112,3 +129,68 @@ def get_reflection(date):
     row = conn.execute('SELECT * FROM reflections WHERE date = ?', (date,)).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+# --- Review Sessions ---
+
+def create_review_session(date, user_problem):
+    conn = get_db()
+    # 若当天已有会话则更新，否则新建
+    existing = conn.execute(
+        'SELECT id FROM review_sessions WHERE date = ?', (date,)
+    ).fetchone()
+    if existing:
+        conn.execute(
+            'UPDATE review_sessions SET user_problem=?, status=?, created_at=? WHERE date=?',
+            (user_problem, 'in_progress', datetime.now().isoformat(), date)
+        )
+        # 清空旧消息
+        conn.execute('DELETE FROM review_messages WHERE session_id=?', (existing['id'],))
+        session_id = existing['id']
+    else:
+        cursor = conn.execute(
+            'INSERT INTO review_sessions (date, user_problem, status, created_at) VALUES (?, ?, ?, ?)',
+            (date, user_problem, 'in_progress', datetime.now().isoformat())
+        )
+        session_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return session_id
+
+
+def add_review_message(session_id, role, content):
+    conn = get_db()
+    conn.execute(
+        'INSERT INTO review_messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)',
+        (session_id, role, content, datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_review_session(date):
+    conn = get_db()
+    session = conn.execute(
+        'SELECT * FROM review_sessions WHERE date = ?', (date,)
+    ).fetchone()
+    if not session:
+        conn.close()
+        return None
+    session_dict = dict(session)
+    messages = conn.execute(
+        'SELECT role, content FROM review_messages WHERE session_id = ? ORDER BY created_at',
+        (session_dict['id'],)
+    ).fetchall()
+    session_dict['messages'] = [dict(m) for m in messages]
+    conn.close()
+    return session_dict
+
+
+def complete_review_session(session_id):
+    conn = get_db()
+    conn.execute(
+        'UPDATE review_sessions SET status=? WHERE id=?',
+        ('completed', session_id)
+    )
+    conn.commit()
+    conn.close()
