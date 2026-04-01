@@ -194,3 +194,12 @@ def complete_review_session(session_id):
     )
     conn.commit()
     conn.close()
+
+
+def get_all_review_sessions():
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT id, date, user_problem, status, created_at FROM review_sessions ORDER BY date DESC'
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

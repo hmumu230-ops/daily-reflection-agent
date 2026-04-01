@@ -4,7 +4,8 @@ from models import (
     init_db, insert_activity, get_activities_by_date, get_activities_by_range,
     get_activity_by_id, update_activity, delete_activity,
     save_reflection, get_reflection,
-    create_review_session, add_review_message, get_review_session, complete_review_session
+    create_review_session, add_review_message, get_review_session, complete_review_session,
+    get_all_review_sessions
 )
 from config import SECRET_KEY
 
@@ -19,31 +20,18 @@ CATEGORIES = ['身心活动', '意识活动', '精神活动', '行为活动']
 @app.route('/')
 def index():
     today = date.today().isoformat()
-    return render_template('index.html', date=today, categories=CATEGORIES)
+    return render_template('index.html', date=today)
 
 
 @app.route('/day/<day>')
 def day_view(day):
-    return render_template('index.html', date=day, categories=CATEGORIES)
+    return render_template('index.html', date=day)
 
 
-@app.route('/record')
-def record_new():
-    today = date.today().isoformat()
-    return render_template('record.html', activity=None, date=today, categories=CATEGORIES)
-
-
-@app.route('/record/<int:activity_id>')
-def record_edit(activity_id):
-    activity = get_activity_by_id(activity_id)
-    if not activity:
-        return redirect(url_for('index'))
-    return render_template('record.html', activity=activity, date=activity['date'], categories=CATEGORIES)
-
-
-@app.route('/analysis')
-def analysis():
-    return render_template('analysis.html')
+@app.route('/history')
+def history():
+    sessions = get_all_review_sessions()
+    return render_template('history.html', sessions=sessions)
 
 
 # --- API Routes ---
@@ -232,4 +220,4 @@ def api_trends():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)

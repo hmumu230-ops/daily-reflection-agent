@@ -1,80 +1,62 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-grid">
+<div class="journal-card">
 
-    <!-- 左栏：活动列表 -->
-    <div class="left-column">
-        <div class="day-header">
-            <button class="btn-icon" onclick="changeDate(-1)">&larr;</button>
-            <input type="date" id="current-date" value="{{ date }}" onchange="goToDate(this.value)">
-            <button class="btn-icon" onclick="changeDate(1)">&rarr;</button>
-            <a href="/record?date={{ date }}" class="btn btn-primary">+ 添加活动</a>
-        </div>
-
-        <div class="legend">
-            {% for cat in categories %}
-            <span class="legend-item cat-{{ loop.index }}">{{ cat }}</span>
-            {% endfor %}
-        </div>
-
-        <div class="timeline" id="timeline">
-            <div class="timeline-empty" id="empty-state">
-                今天还没有记录活动，点击「添加活动」开始记录
-            </div>
-        </div>
+    <div class="journal-date">
+        <button class="journal-date-nav" onclick="changeDate(-1)">&larr;</button>
+        <input type="date" class="journal-date-input" id="current-date"
+               value="{{ date }}" onchange="goToDate(this.value)">
+        <button class="journal-date-nav" onclick="changeDate(1)">&rarr;</button>
     </div>
 
-    <!-- 右栏：引导回顾 + 建议 -->
-    <div class="review-panel" id="review-panel">
+    <!-- 状态1：开始 -->
+    <div id="review-start">
+        <h1 class="journal-greeting">今天，想聊点什么？</h1>
+        <p class="journal-subtitle">写下你的困惑或想解决的问题，AI 会引导你深入思考</p>
+        <textarea
+            id="problem-input"
+            class="journal-input"
+            rows="5"
+            placeholder="比如：最近总是拖延，明明知道该做却迟迟不动手…"></textarea>
+        <button class="journal-btn" id="start-btn" onclick="startReview()">开始对话</button>
+    </div>
 
-        <!-- 状态1：未开始 -->
-        <div id="review-start">
-            <h2 class="panel-title">💬 每日引导回顾</h2>
-            <p class="panel-desc">说说今天你想解决什么问题？AI 会引导你深入回忆，然后给出具体建议。</p>
+    <!-- 状态2：对话中 -->
+    <div id="review-chat" style="display:none">
+        <div class="chat-topic" id="chat-problem-label"></div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-row">
             <textarea
-                id="problem-input"
-                class="problem-input"
-                rows="3"
-                placeholder="例如：我最近和朋友关系有点紧张，不知道怎么处理…"></textarea>
-            <button class="btn btn-primary btn-block" onclick="startReview()">开始回顾</button>
+                id="chat-input"
+                class="chat-input"
+                rows="2"
+                placeholder="说说你的想法…"
+                onkeydown="handleChatKey(event)"></textarea>
+            <button class="chat-send-btn" onclick="sendMessage()">发送</button>
         </div>
-
-        <!-- 状态2：对话中 -->
-        <div id="review-chat" style="display:none">
-            <div class="chat-header">
-                <h2 class="panel-title">💬 引导回顾中</h2>
-                <span class="chat-problem" id="chat-problem-label"></span>
-            </div>
-            <div class="chat-messages" id="chat-messages"></div>
-            <div class="chat-input-area">
-                <textarea
-                    id="chat-input"
-                    class="chat-input"
-                    rows="2"
-                    placeholder="输入你的回答…"
-                    onkeydown="handleChatKey(event)"></textarea>
-                <div class="chat-actions">
-                    <button class="btn btn-secondary" onclick="sendMessage()">发送</button>
-                    <button class="btn btn-primary" onclick="finishReview()">生成建议 →</button>
-                </div>
-            </div>
+        <div class="chat-footer">
+            <span class="chat-hint">Ctrl + Enter 发送</span>
+            <button class="chat-finish-btn" id="finish-btn" onclick="finishReview()">生成建议 →</button>
         </div>
-
-        <!-- 状态3：建议结果 -->
-        <div id="review-result" style="display:none">
-            <h2 class="panel-title">✨ AI 建议</h2>
-            <div class="result-categories" id="result-categories"></div>
-            <div class="solution-card" id="solution-content"></div>
-            <button class="btn btn-secondary btn-block" style="margin-top:14px" onclick="resetReview()">重新回顾</button>
-        </div>
-
     </div>
+
+    <!-- 状态3：建议结果 -->
+    <div id="review-result" style="display:none">
+        <div class="result-header">
+            <div class="result-title">为你生成的建议</div>
+            <div class="result-problem" id="result-problem"></div>
+        </div>
+        <div class="result-tags" id="result-tags"></div>
+        <hr class="result-divider">
+        <div class="solution-content" id="solution-content"></div>
+        <button class="btn-restart" onclick="resetReview()">开始新的对话</button>
+    </div>
+
 </div>
 
 <script>
 const currentDate = '{{ date }}';
 document.addEventListener('DOMContentLoaded', () => {
-    loadActivities(currentDate);
     loadExistingReview(currentDate);
 });
 </script>

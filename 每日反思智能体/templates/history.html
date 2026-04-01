@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="history-title">历史记录</h1>
+
+{% if sessions %}
+<div class="history-list">
+    {% for s in sessions %}
+    <a href="/day/{{ s.date }}" class="history-item">
+        <div class="history-date">{{ s.date }}</div>
+        <div class="history-problem">{{ s.user_problem }}</div>
+        <span class="history-status {{ 'completed' if s.status == 'completed' else 'in-progress' }}">
+            {{ '已完成' if s.status == 'completed' else '进行中' }}
+        </span>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="history-empty">
+    还没有记录<br>
+    <a href="/" style="color: var(--accent); text-decoration: none;">开始今天的第一次对话 →</a>
+</div>
+{% endif %}
+{% endblock %}
