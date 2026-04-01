@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="analysis-header">
+    <h2>趋势分析</h2>
+    <div class="date-range">
+        <label>从</label>
+        <input type="date" id="date-from">
+        <label>到</label>
+        <input type="date" id="date-to">
+        <button class="btn btn-primary" onclick="loadAnalysis()">查询</button>
+    </div>
+</div>
+
+<div class="stats-section" id="stats-section" style="display:none">
+    <h3>时间分配统计</h3>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="chart-container" id="chart-container"></div>
+</div>
+
+<div class="trend-section" id="trend-section" style="display:none">
+    <h3>AI 趋势分析</h3>
+    <div id="trend-content">
+        <button class="btn btn-secondary" onclick="generateTrends()">生成趋势分析</button>
+    </div>
+</div>
+{% endblock %}

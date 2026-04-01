@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-grid">
+
+    <!-- 左栏：活动列表 -->
+    <div class="left-column">
+        <div class="day-header">
+            <button class="btn-icon" onclick="changeDate(-1)">&larr;</button>
+            <input type="date" id="current-date" value="{{ date }}" onchange="goToDate(this.value)">
+            <button class="btn-icon" onclick="changeDate(1)">&rarr;</button>
+            <a href="/record?date={{ date }}" class="btn btn-primary">+ 添加活动</a>
+        </div>
+
+        <div class="legend">
+            {% for cat in categories %}
+            <span class="legend-item cat-{{ loop.index }}">{{ cat }}</span>
+            {% endfor %}
+        </div>
+
+        <div class="timeline" id="timeline">
+            <div class="timeline-empty" id="empty-state">
+                今天还没有记录活动，点击「添加活动」开始记录
+            </div>
+        </div>
+    </div>
+
+    <!-- 右栏：AI 反思 -->
+    <div class="reflection-section" id="reflection-section">
+        <h2>AI 每日反思</h2>
+        <div id="reflection-content">
+            <button class="btn btn-secondary" id="btn-reflect" onclick="generateReflection()">
+                生成每日反思
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const currentDate = '{{ date }}';
+document.addEventListener('DOMContentLoaded', () => loadActivities(currentDate));
+</script>
+{% endblock %}

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>后端知识导图</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "Microsoft YaHei", sans-serif;
+  background: #f0f7ff;
+  min-height: 100vh;
+  padding: 40px 20px;
+  color: #2c3e50;
+}
+
+h1 {
+  text-align: center;
+  font-size: 1.6rem;
+  color: #5b9bd5;
+  margin-bottom: 8px;
+}
+.subtitle {
+  text-align: center;
+  color: #7f8c9a;
+  font-size: 0.9rem;
+  margin-bottom: 40px;
+}
+
+.map {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* 中心节点 */
+.center {
+  background: #5b9bd5;
+  color: white;
+  text-align: center;
+  padding: 18px 32px;
+  border-radius: 50px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  width: fit-content;
+  margin: 0 auto 40px;
+  box-shadow: 0 4px 16px rgba(91,155,213,0.3);
+}
+
+/* 主分支容器 */
+.branches {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+/* 主分支 */
+.branch {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  border-top: 4px solid var(--color);
+}
+
+.branch-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.branch-title .icon {
+  font-size: 1.4rem;
+}
+.branch-title .name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color);
+}
+.branch-title .tag {
+  font-size: 0.75rem;
+  color: #7f8c9a;
+  background: #f0f7ff;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+/* 子节点 */
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  background: #f8fbff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--color);
+}
+.item .item-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+  color: #2c3e50;
+}
+.item .item-desc {
+  font-size: 0.8rem;
+  color: #7f8c9a;
+  line-height: 1.5;
+}
+.item .item-code {
+  font-size: 0.78rem;
+  color: #5b9bd5;
+  font-family: monospace;
+  margin-top: 4px;
+  background: #eef5fc;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+/* 颜色 */
+.branch-1 { --color: #5b9bd5; }
+.branch-2 { --color: #6bc89b; }
+.branch-3 { --color: #a78bda; }
+.branch-4 { --color: #f0a06e; }
+.branch-5 { --color: #e07b7b; }
+.branch-6 { --color: #5bbcb5; }
+
+/* 底部项目对应 */
+.project-note {
+  max-width: 960px;
+  margin: 24px auto 0;
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.project-note h2 {
+  font-size: 1rem;
+  color: #5b9bd5;
+  margin-bottom: 16px;
+}
+.files {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.file-card {
+  background: #f8fbff;
+  border-radius: 10px;
+  padding: 14px;
+  border-top: 3px solid var(--color);
+  text-align: center;
+}
+.file-card .fname {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color);
+  margin-bottom: 6px;
+}
+.file-card .fdesc {
+  font-size: 0.78rem;
+  color: #7f8c9a;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .branches { grid-template-columns: 1fr; }
+  .files { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<h1>后端知识导图</h1>
+<p class="subtitle">每日反思智能体 · 后端全貌</p>
+
+<div class="map">
+
+  <div class="center">🖥️ 后端（Backend）</div>
+
+  <div class="branches">
+
+    <!-- 1. 是什么 -->
+    <div class="branch branch-1">
+      <div class="branch-title">
+        <span class="icon">💡</span>
+        <span class="name">后端是什么</span>
+        <span class="tag">概念</span>
+      </div>
+      <div class="items">
+        <div class="item">
+          <div class="item-title">用户看不见的部分</div>
+          <div class="item-desc">前端是餐厅大厅，后端是厨房。菜在厨房做好，再端出来给客人。</div>
+        </div>
+        <div class="item">
+          <div class="item-title">三件事：接请求 → 处理逻辑 → 存/取数据</div>
+          <div class="item-desc">用户点「保存」→ 后端收到 → 验证数据 → 写入数据库 → 返回结果</div>
+        </div>
+        <div class="item">
+          <div class="item-title">你的项目用 Python + Flask</div>
+          <div class="item-desc">Flask 是一个 Python 框架，帮你快速搭建后端，不用从零写。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. HTTP -->
+    <div class="branch branch-2">
+      <div class="branch-title">
+        <span class="icon">📡</span>
+        <span class="name">HTTP 通信</span>
+        <span class="tag">前后端对话方式</span>
+      </div>
+      <div class="items">
+        <div class="item">
+          <div class="item-title">GET — 获取数据</div>
+          <div class="item-desc">「给我今天的活动列表」</div>
+          <span class="item-code">GET /api/activities?date=2026-03-31</span>
+        </div>
+        <div class="item">
+          <div class="item-title">POST — 新建数据</div>
+          <div class="item-desc">「帮我保存这条新活动」</div>
+          <span class="item-code">POST /api/activities</span>
+        </div>
+        <div class="item">
+          <div class="item-title">PUT — 修改数据</div>
+          <div class="item-desc">「帮我修改第3条活动」</div>
+          <span class="item-code">PUT /api/activities/3</span>
+        </div>
+        <div class="item">
+          <div class="item-title">DELETE — 删除数据</div>
+          <div class="item-desc">「删掉第3条活动」</div>
+          <span class="item-code">DELETE /api/activities/3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 路由 -->
+    <div class="branch branch-3">
+      <div class="branch-title">
+        <span class="icon">🗺️</span>
+        <span class="name">路由</span>
+        <span class="tag">地址 → 函数</span>
+      </div>
+      <div class="items">
+        <div class="item">
+          <div class="item-title">路由 = 地址到函数的对应表</div>
+          <div class="item-desc">用户访问某个地址，后端知道该执行哪个函数。</div>
+        </div>
+        <div class="item">
+          <div class="item-title">页面路由 → 返回 HTML</div>
+          <div class="item-desc">浏览器访问，返回完整的页面。</div>
+          <span class="item-code">@app.route('/') → 返回 index.html</span>
+        </div>
+        <div class="item">
+          <div class="item-title">API 路由 → 返回 JSON</div>
+          <div class="item-desc">JS 用 fetch 调用，返回数据，不返回页面。</div>
+          <span class="item-code">@app.route('/api/...') → 返回 {}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 数据库 -->
+    <div class="branch branch-4">
+      <div class="branch-title">
+        <span class="icon">🗄️</span>
+        <span class="name">数据库</span>
+        <span class="tag">存数据的地方</span>
+      </div>
+      <div class="items">
+        <div class="item">
+          <div class="item-title">表 = Excel 表格</div>
+          <div class="item-desc">每列是字段（日期/时间/内容），每行是一条记录。</div>
+        </div>
+        <div class="item">
+          <div class="item-title">SQL — 操作数据库的语言</div>
+          <div class="item-desc">4 个核心操作：</div>
+          <span class="item-code">SELECT（查）INSERT（增）UPDATE（改）DELETE（删）</span>
+        </div>
+        <div class="item">
+          <div class="item-title">你的项目用 SQLite</div>
+          <div class="item-desc">最简单的数据库，所有数据存在一个文件里：data/reflection.db</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 状态码 -->
+    <div class="branch branch-5">
+      <div class="branch-title">
+        <span class="icon">🚦</span>
+        <span class="name">状态码</span>
+        <span class="tag">后端的回复信号</span>
+      </div>
+      <div class="items">
+        <div class="item">
+          <div class="item-title">✅ 200 — 成功</div>
+          <div class="item-desc">请求成功，数据在这里。</div>
+        </div>
+        <div class="item">
+          <div class="item-title">✅ 201 — 创建成功</div>
+          <div class="item-desc">新数据已经存好了。</div>
+        </div>
+        <div class="item">
+          <div class="item-title">❌ 400 — 请求有问题</div>
+          <div class="item-desc">你发来的数据有错，比如漏了必填字段。</div>
+        </div>
+        <div class="item">
+          <div class="item-title">❌ 404 — 找不到</div>
+          <div class="item-desc">你要的那条数据不存在。</div>
+        </div>
+        <div class="item">
+          <div class="item-title">❌ 500 — 后端出错</div>
+          <div class="item-desc">服务器内部出了问题。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. AI 服务 -->
+    <div class="branch branch-6">
+      <div class="branch-title">
+        <span class="icon">🤖</span>
+        <span class="name">AI 服务</span>
+        <span class="tag">调用 Claude API</span>
+      </div>
+      <div class="items">
+        <div class="item">
+          <div class="item-title">后端调用外部 API</div>
+          <div class="item-desc">后端也可以去请求别人的接口，就像前端请求你的后端一样。</div>
+        </div>
+        <div class="item">
+          <div class="item-title">流程</div>
+          <div class="item-desc">把活动数据格式化成文字 → 发给 Claude → 拿回反思内容 → 存数据库 → 返回给前端</div>
+        </div>
+        <div class="item">
+          <div class="item-title">需要 API Key</div>
+          <div class="item-desc">访问 Claude 的「门票」，存在环境变量里，不能写死在代码里。</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 项目文件对应 -->
+  <div class="project-note">
+    <h2>📁 你的项目文件对应</h2>
+    <div class="files">
+      <div class="file-card branch-1">
+        <div class="fname">config.py</div>
+        <div class="fdesc">配置文件<br>密钥、路径、模型名</div>
+      </div>
+      <div class="file-card branch-3">
+        <div class="fname">app.py</div>
+        <div class="fdesc">路由总调度<br>接请求、返结果</div>
+      </div>
+      <div class="file-card branch-4">
+        <div class="fname">models.py</div>
+        <div class="fdesc">数据库操作<br>增删改查</div>
+      </div>
+      <div class="file-card branch-6">
+        <div class="fname">ai_service.py</div>
+        <div class="fdesc">AI 接口<br>调用 Claude API</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
