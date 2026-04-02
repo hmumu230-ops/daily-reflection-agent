@@ -1,4 +1,31 @@
-// --- Navigation ---
+// ========== localStorage 数据层 ==========
+// 所有对话数据以 localStorage 为主存储，服务器只做 AI 计算
+
+const STORAGE_KEY = 'reflection_sessions';
+
+function getAllSessions() {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    } catch { return {}; }
+}
+
+function getSession(date) {
+    return getAllSessions()[date] || null;
+}
+
+function saveSession(date, data) {
+    const all = getAllSessions();
+    all[date] = { ...all[date], ...data, updatedAt: new Date().toISOString() };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+}
+
+function deleteSession(date) {
+    const all = getAllSessions();
+    delete all[date];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+}
+
+// ========== Navigation ==========
 
 function changeDate(delta) {
     const input = document.getElementById('current-date');
@@ -11,56 +38,26 @@ function goToDate(date) {
     location.href = '/day/' + date;
 }
 
-// --- Guided Review ---
+// ========== Guided Review ==========
 
 let reviewSessionId = null;
-let chatHistory = [];     // {role, content} 数组，跟踪当前对话
-let currentProblem = '';  // 当前对话的问题
+let chatHistory = [];
+let currentProblem = '';
 
-function saveSessionToLocal() {
-    localStorage.setItem('review_' + currentDate, JSON.stringify({
-        problem: currentProblem,
-        history: chatHistory,
-        sessionId: reviewSessionId
-    }));
-}
+function loadExistingReview(date) {
+    const session = getSession(date);
+    if (!session) return;
 
-function clearSessionLocal() {
-    localStorage.removeItem('review_' + currentDate);
-}
-
-async function loadExistingReview(date) {
-    const res = await fetch('/api/review/' + date);
-    const session = await res.json();
-
-    if (session) {
-        if (session.status === 'completed') {
-            const ref = await fetch('/api/reflect/' + date).then(r => r.json());
-            if (ref && ref.reflection) {
-                showResult(ref.reflection, [], session.user_problem);
-            }
-            return;
-        } else if (session.messages && session.messages.length > 0) {
-            reviewSessionId = session.id;
-            currentProblem = session.user_problem;
-            chatHistory = session.messages.map(m => ({ role: m.role, content: m.content }));
-            saveSessionToLocal();
-            restoreChatUI(session.user_problem, session.messages);
-            return;
-        }
+    if (session.status === 'completed' && session.solution) {
+        showResult(session.solution, session.categories || [], session.problem);
+        return;
     }
 
-    // 服务器无会话，尝试从 localStorage 恢复（服务器重启后）
-    const saved = localStorage.getItem('review_' + date);
-    if (saved) {
-        try {
-            const local = JSON.parse(saved);
-            if (local.problem && local.history && local.history.length > 0) {
-                currentProblem = local.problem;
-                chatHistory = local.history;
-                restoreChatUI(local.problem, local.history);
-            }
-        } catch (e) { /* ignore parse errors */ }
+    if (session.history && session.history.length > 0) {
+        currentProblem = session.problem;
+        chatHistory = session.history;
+        reviewSessionId = session.sessionId || null;
+        restoreChatUI(session.problem, session.history);
     }
 }
 
@@ -104,7 +101,13 @@ async function startReview() {
         reviewSessionId = data.session_id;
         currentProblem = problem;
         chatHistory = [{ role: 'assistant', content: data.message }];
-        saveSessionToLocal();
+
+        saveSession(currentDate, {
+            problem: currentProblem,
+            history: chatHistory,
+            sessionId: reviewSessionId,
+            status: 'in_progress'
+        });
 
         document.getElementById('review-start').style.display = 'none';
         document.getElementById('review-chat').style.display = 'block';
@@ -151,7 +154,13 @@ async function sendMessage() {
 
         chatHistory.push({ role: 'user', content: message });
         chatHistory.push({ role: 'assistant', content: data.message });
-        saveSessionToLocal();
+
+        saveSession(currentDate, {
+            problem: currentProblem,
+            history: chatHistory,
+            sessionId: reviewSessionId,
+            status: 'in_progress'
+        });
 
         appendBubble(data.message, 'ai');
     } catch (err) {
@@ -190,8 +199,16 @@ async function finishReview() {
             return;
         }
 
-        clearSessionLocal();
         const problem = document.getElementById('chat-problem-label').textContent;
+
+        saveSession(currentDate, {
+            problem: currentProblem,
+            history: chatHistory,
+            solution: data.solution,
+            categories: data.categories || [],
+            status: 'completed'
+        });
+
         document.getElementById('review-chat').style.display = 'none';
         showResult(data.solution, data.categories || [], problem);
     } catch (err) {
@@ -220,7 +237,7 @@ function resetReview() {
     reviewSessionId = null;
     chatHistory = [];
     currentProblem = '';
-    clearSessionLocal();
+    deleteSession(currentDate);
     document.getElementById('review-result').style.display = 'none';
     document.getElementById('review-start').style.display = 'block';
     document.getElementById('problem-input').value = '';
@@ -242,8 +259,52 @@ function appendBubble(text, type) {
     return bubble;
 }
 
+// ========== 息屏恢复 ==========
+// 当用户从息屏/切后台回来时，重新从 localStorage 加载状态
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && typeof currentDate !== 'undefined') {
+        const session = getSession(currentDate);
+        if (session && session.history && session.history.length > 0 && chatHistory.length === 0) {
+            loadExistingReview(currentDate);
+        }
+    }
+});
+
+// ========== 历史记录页面渲染 ==========
+
+function renderHistoryPage() {
+    const container = document.getElementById('history-container');
+    if (!container) return;
+
+    const all = getAllSessions();
+    const dates = Object.keys(all).sort().reverse();
+
+    if (dates.length === 0) {
+        container.innerHTML = `
+            <div class="history-empty">
+                还没有记录<br>
+                <a href="/" style="color: var(--accent); text-decoration: none;">开始今天的第一次对话 →</a>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = dates.map(date => {
+        const s = all[date];
+        const statusClass = s.status === 'completed' ? 'completed' : 'in-progress';
+        const statusText = s.status === 'completed' ? '已完成' : '进行中';
+        return `
+            <a href="/day/${date}" class="history-item">
+                <div class="history-date">${date}</div>
+                <div class="history-problem">${escapeHtml(s.problem || '')}</div>
+                <span class="history-status ${statusClass}">${statusText}</span>
+            </a>`;
+    }).join('');
+}
+
 function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;').replace(/\n/g, '<br>');
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
