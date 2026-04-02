@@ -3,6 +3,16 @@
 
 const STORAGE_KEY = 'reflection_sessions';
 
+// 统一 fetch 包装：遇到 401 自动跳转登录页
+async function apiFetch(url, options) {
+    const res = await fetch(url, options);
+    if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('未登录');
+    }
+    return res;
+}
+
 function getAllSessions() {
     try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -84,7 +94,7 @@ async function startReview() {
     btn.disabled = true;
 
     try {
-        const res = await fetch(`/api/review/${currentDate}/start`, {
+        const res = await apiFetch(`/api/review/${currentDate}/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ problem })
@@ -134,7 +144,7 @@ async function sendMessage() {
     const thinking = appendBubble('思考中…', 'ai');
 
     try {
-        const res = await fetch(`/api/review/${currentDate}/message`, {
+        const res = await apiFetch(`/api/review/${currentDate}/message`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -182,7 +192,7 @@ async function finishReview() {
     btn.disabled = true;
 
     try {
-        const res = await fetch(`/api/review/${currentDate}/finish`, {
+        const res = await apiFetch(`/api/review/${currentDate}/finish`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -11,6 +11,10 @@
         <a href="/" class="nav-brand">每日反思</a>
         <div class="nav-links">
             <a href="/history" class="nav-link">历史记录</a>
+            {% if current_user.is_authenticated %}
+            <span class="nav-user">{{ current_user.username }}</span>
+            <a href="/logout" class="nav-link nav-logout">退出</a>
+            {% endif %}
         </div>
     </nav>
     <main class="container">

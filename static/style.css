@@ -414,6 +414,64 @@ body {
     line-height: 1.8;
 }
 
+/* ===== Auth ===== */
+.auth-card {
+    max-width: 400px;
+    margin: 60px auto 0;
+}
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.auth-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.93rem;
+    font-family: inherit;
+    color: var(--text);
+    background: #fafbfc;
+    transition: all 0.25s;
+}
+.auth-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(74,142,200,0.1);
+    background: #fff;
+}
+.auth-error {
+    text-align: center;
+    color: #d32f2f;
+    font-size: 0.85rem;
+    background: #ffebee;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+.auth-switch {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+.auth-switch a {
+    color: var(--accent);
+    text-decoration: none;
+}
+.auth-switch a:hover { text-decoration: underline; }
+.nav-user {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    padding: 6px 8px;
+}
+.nav-logout {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+.nav-logout:hover { opacity: 1; }
+
 /* ===== Loading ===== */
 .loading {
     text-align: center;

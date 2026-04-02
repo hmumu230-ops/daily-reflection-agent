@@ -1,7 +1,10 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date, timedelta
 from models import (
-    init_db, insert_activity, get_activities_by_date, get_activities_by_range,
+    init_db, get_user_by_username, get_user_by_id, create_user,
+    insert_activity, get_activities_by_date, get_activities_by_range,
     get_activity_by_id, update_activity, delete_activity,
     save_reflection, get_reflection,
     create_review_session, add_review_message, get_review_session, complete_review_session,
@@ -12,66 +15,155 @@ from config import SECRET_KEY
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
-CATEGORIES = ['身心活动', '意识活动', '精神活动', '行为活动']
+# --- Flask-Login ---
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+
+class User(UserMixin):
+    def __init__(self, id, username):
+        self.id = id
+        self.username = username
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    row = get_user_by_id(int(user_id))
+    if row:
+        return User(row['id'], row['username'])
+    return None
+
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    if request.path.startswith('/api/'):
+        return jsonify({'error': '请先登录'}), 401
+    return redirect(url_for('login'))
+
+
+# --- Auth Routes ---
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if not username or not password:
+            error = '请填写用户名和密码'
+        else:
+            user = get_user_by_username(username)
+            if user and check_password_hash(user['password_hash'], password):
+                login_user(User(user['id'], user['username']), remember=True)
+                return redirect(request.args.get('next') or url_for('index'))
+            else:
+                error = '用户名或密码错误'
+
+    return render_template('login.html', error=error, mode='login')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm', '')
+
+        if not username or not password:
+            error = '请填写用户名和密码'
+        elif len(username) < 2 or len(username) > 20:
+            error = '用户名需要 2-20 个字符'
+        elif len(password) < 6:
+            error = '密码至少 6 位'
+        elif password != confirm:
+            error = '两次密码不一致'
+        elif get_user_by_username(username):
+            error = '用户名已被注册'
+        else:
+            user_id = create_user(username, generate_password_hash(password))
+            login_user(User(user_id, username), remember=True)
+            return redirect(url_for('index'))
+
+    return render_template('login.html', error=error, mode='register')
+
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 
 # --- Page Routes ---
 
 @app.route('/')
+@login_required
 def index():
     today = date.today().isoformat()
     return render_template('index.html', date=today)
 
 
 @app.route('/day/<day>')
+@login_required
 def day_view(day):
     return render_template('index.html', date=day)
 
 
 @app.route('/history')
+@login_required
 def history():
-    sessions = get_all_review_sessions()
+    sessions = get_all_review_sessions(current_user.id)
     return render_template('history.html', sessions=sessions)
 
 
 # --- API Routes ---
 
 @app.route('/api/activities', methods=['GET'])
+@login_required
 def api_get_activities():
     d = request.args.get('date', date.today().isoformat())
     date_from = request.args.get('from')
     date_to = request.args.get('to')
     if date_from and date_to:
-        activities = get_activities_by_range(date_from, date_to)
+        activities = get_activities_by_range(current_user.id, date_from, date_to)
     else:
-        activities = get_activities_by_date(d)
+        activities = get_activities_by_date(current_user.id, d)
     return jsonify(activities)
 
 
 @app.route('/api/activities', methods=['POST'])
+@login_required
 def api_create_activity():
     data = request.get_json()
     required = ['date', 'time_start', 'time_end', 'category', 'content']
     for field in required:
         if not data.get(field):
             return jsonify({'error': f'缺少字段: {field}'}), 400
-    if data['category'] not in CATEGORIES:
-        return jsonify({'error': '无效的活动类别'}), 400
     activity_id = insert_activity(
-        data['date'], data['time_start'], data['time_end'],
+        current_user.id, data['date'], data['time_start'], data['time_end'],
         data['category'], data['content']
     )
     return jsonify({'id': activity_id}), 201
 
 
 @app.route('/api/activities/<int:activity_id>', methods=['PUT'])
+@login_required
 def api_update_activity(activity_id):
     data = request.get_json()
-    existing = get_activity_by_id(activity_id)
+    existing = get_activity_by_id(current_user.id, activity_id)
     if not existing:
         return jsonify({'error': '活动不存在'}), 404
     update_activity(
-        activity_id,
+        current_user.id, activity_id,
         data.get('date', existing['date']),
         data.get('time_start', existing['time_start']),
         data.get('time_end', existing['time_end']),
@@ -82,43 +174,46 @@ def api_update_activity(activity_id):
 
 
 @app.route('/api/activities/<int:activity_id>', methods=['DELETE'])
+@login_required
 def api_delete_activity(activity_id):
-    delete_activity(activity_id)
+    delete_activity(current_user.id, activity_id)
     return jsonify({'ok': True})
 
 
 @app.route('/api/reflect/<day>', methods=['GET'])
+@login_required
 def api_get_reflection(day):
-    ref = get_reflection(day)
+    ref = get_reflection(current_user.id, day)
     if ref:
         return jsonify(ref)
     return jsonify(None)
 
 
 @app.route('/api/reflect/<day>', methods=['POST'])
+@login_required
 def api_generate_reflection(day):
-    activities = get_activities_by_date(day)
+    activities = get_activities_by_date(current_user.id, day)
     if not activities:
         return jsonify({'error': '当天没有活动记录，无法生成反思'}), 400
     try:
         from ai_service import generate_daily_reflection
         result = generate_daily_reflection(activities)
-        save_reflection(day, result['summary'], result['reflection'])
+        save_reflection(current_user.id, day, result['summary'], result['reflection'])
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
 
 
 @app.route('/api/review/<day>/start', methods=['POST'])
+@login_required
 def api_review_start(day):
-    """开始引导回顾：用户说出问题，AI 给出第一个引导问题"""
     data = request.get_json()
     user_problem = data.get('problem', '').strip()
     if not user_problem:
         return jsonify({'error': '请先描述你想解决的问题'}), 400
 
-    activities = get_activities_by_date(day)
-    session_id = create_review_session(day, user_problem)
+    activities = get_activities_by_date(current_user.id, day)
+    session_id = create_review_session(current_user.id, day, user_problem)
 
     try:
         from ai_service import start_guided_review
@@ -130,24 +225,23 @@ def api_review_start(day):
 
 
 @app.route('/api/review/<day>/message', methods=['POST'])
+@login_required
 def api_review_message(day):
-    """用户发送消息，AI 继续引导追问"""
     data = request.get_json()
     user_message = data.get('message', '').strip()
     if not user_message:
         return jsonify({'error': '消息不能为空'}), 400
 
-    session = get_review_session(day)
+    session = get_review_session(current_user.id, day)
 
-    # 会话丢失（服务器重启导致 DB 清空）时，用前端传来的上下文自动恢复
     if not session:
         history = data.get('history', [])
         problem = data.get('problem', '')
         if problem and history:
-            session_id = create_review_session(day, problem)
+            session_id = create_review_session(current_user.id, day, problem)
             for msg in history:
                 add_review_message(session_id, msg['role'], msg['content'])
-            session = get_review_session(day)
+            session = get_review_session(current_user.id, day)
         if not session:
             return jsonify({'error': '会话已过期，请刷新页面重新开始'}), 404
 
@@ -156,7 +250,7 @@ def api_review_message(day):
 
     add_review_message(session['id'], 'user', user_message)
 
-    activities = get_activities_by_date(day)
+    activities = get_activities_by_date(current_user.id, day)
     messages = session['messages'] + [{'role': 'user', 'content': user_message}]
 
     try:
@@ -169,35 +263,31 @@ def api_review_message(day):
 
 
 @app.route('/api/review/<day>/finish', methods=['POST'])
+@login_required
 def api_review_finish(day):
-    """结束回顾，使用 RAG 生成最终建议"""
     data = request.get_json() or {}
-    session = get_review_session(day)
+    session = get_review_session(current_user.id, day)
 
-    # 会话丢失时自动恢复
     if not session:
         history = data.get('history', [])
         problem = data.get('problem', '')
         if problem and history:
-            session_id = create_review_session(day, problem)
+            session_id = create_review_session(current_user.id, day, problem)
             for msg in history:
                 add_review_message(session_id, msg['role'], msg['content'])
-            session = get_review_session(day)
+            session = get_review_session(current_user.id, day)
         if not session:
             return jsonify({'error': '会话已过期，请刷新页面重新开始'}), 404
 
     complete_review_session(session['id'])
 
-    activities = get_activities_by_date(day)
+    activities = get_activities_by_date(current_user.id, day)
 
     try:
         from ai_service import generate_solution
         from rag_service import build_rag_context
-        from models import get_db
 
-        conn = get_db()
-        rag = build_rag_context(session['user_problem'], day, conn)
-        conn.close()
+        rag = build_rag_context(current_user.id, session['user_problem'], day)
 
         solution = generate_solution(
             activities=activities,
@@ -206,7 +296,7 @@ def api_review_finish(day):
             knowledge_context=rag['knowledge'],
             history_context=rag['history']
         )
-        save_reflection(day, f"回顾问题：{session['user_problem']}", solution)
+        save_reflection(current_user.id, day, f"回顾问题：{session['user_problem']}", solution)
         return jsonify({
             'solution': solution,
             'categories': rag['categories']
@@ -216,20 +306,21 @@ def api_review_finish(day):
 
 
 @app.route('/api/review/<day>', methods=['GET'])
+@login_required
 def api_review_get(day):
-    """获取当天的回顾会话（如果存在）"""
-    session = get_review_session(day)
+    session = get_review_session(current_user.id, day)
     if not session:
         return jsonify(None)
     return jsonify(session)
 
 
 @app.route('/api/trends', methods=['GET'])
+@login_required
 def api_trends():
     days = int(request.args.get('days', 7))
     end = date.today()
     start = end - timedelta(days=days - 1)
-    activities = get_activities_by_range(start.isoformat(), end.isoformat())
+    activities = get_activities_by_range(current_user.id, start.isoformat(), end.isoformat())
     if not activities:
         return jsonify({'error': '所选时间段没有活动记录'}), 400
     try:
