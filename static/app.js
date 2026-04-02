@@ -26,7 +26,12 @@ function getSession(date) {
 function saveSession(date, data) {
     const all = getAllSessions();
     all[date] = { ...all[date], ...data, updatedAt: new Date().toISOString() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+        console.log('[反思] 已保存会话:', date, data.status || 'update');
+    } catch (e) {
+        console.error('[反思] localStorage 保存失败:', e);
+    }
 }
 
 function deleteSession(date) {
@@ -240,7 +245,7 @@ function showResult(solution, categories, problem) {
         `<span class="result-tag">${c}</span>`
     ).join('');
 
-    document.getElementById('solution-content').textContent = solution;
+    document.getElementById('solution-content').innerHTML = renderText(solution);
 }
 
 function resetReview() {
@@ -310,6 +315,18 @@ function renderHistoryPage() {
                 <span class="history-status ${statusClass}">${statusText}</span>
             </a>`;
     }).join('');
+}
+
+function renderText(str) {
+    if (!str) return '';
+    // 先转义 HTML，再把换行变 <br>，把 **text** 变粗体
+    let html = str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    return html;
 }
 
 function escapeHtml(str) {
