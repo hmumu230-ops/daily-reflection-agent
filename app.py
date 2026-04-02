@@ -138,8 +138,19 @@ def api_review_message(day):
         return jsonify({'error': '消息不能为空'}), 400
 
     session = get_review_session(day)
+
+    # 会话丢失（服务器重启导致 DB 清空）时，用前端传来的上下文自动恢复
     if not session:
-        return jsonify({'error': '请先开始回顾会话'}), 404
+        history = data.get('history', [])
+        problem = data.get('problem', '')
+        if problem and history:
+            session_id = create_review_session(day, problem)
+            for msg in history:
+                add_review_message(session_id, msg['role'], msg['content'])
+            session = get_review_session(day)
+        if not session:
+            return jsonify({'error': '会话已过期，请刷新页面重新开始'}), 404
+
     if session['status'] == 'completed':
         return jsonify({'error': '本次回顾已结束'}), 400
 
@@ -160,9 +171,20 @@ def api_review_message(day):
 @app.route('/api/review/<day>/finish', methods=['POST'])
 def api_review_finish(day):
     """结束回顾，使用 RAG 生成最终建议"""
+    data = request.get_json() or {}
     session = get_review_session(day)
+
+    # 会话丢失时自动恢复
     if not session:
-        return jsonify({'error': '请先开始回顾会话'}), 404
+        history = data.get('history', [])
+        problem = data.get('problem', '')
+        if problem and history:
+            session_id = create_review_session(day, problem)
+            for msg in history:
+                add_review_message(session_id, msg['role'], msg['content'])
+            session = get_review_session(day)
+        if not session:
+            return jsonify({'error': '会话已过期，请刷新页面重新开始'}), 404
 
     complete_review_session(session['id'])
 
