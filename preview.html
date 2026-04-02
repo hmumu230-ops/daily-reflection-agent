@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日反思智能体</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">每日反思智能体</div>
+        <div class="nav-links">
+            <a href="#" class="nav-link">今日记录</a>
+            <a href="#" class="nav-link">添加活动</a>
+            <a href="#" class="nav-link">趋势分析</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="page-grid">
+
+            <!-- 左栏：活动列表 -->
+            <div class="left-column">
+                <div class="day-header">
+                    <button class="btn-icon">&larr;</button>
+                    <input type="date" id="current-date" value="2026-03-31">
+                    <button class="btn-icon">&rarr;</button>
+                    <a href="#" class="btn btn-primary">+ 添加活动</a>
+                </div>
+
+                <div class="legend">
+                    <span class="legend-item cat-1">身心活动</span>
+                    <span class="legend-item cat-2">意识活动</span>
+                    <span class="legend-item cat-3">精神活动</span>
+                    <span class="legend-item cat-4">行为活动</span>
+                </div>
+
+                <div class="timeline">
+                    <div class="activity-card cat-1">
+                        <div class="activity-info">
+                            <div class="activity-time">07:00 - 08:00</div>
+                            <span class="activity-category cat-1">身心活动</span>
+                            <div class="activity-content">晨跑 5 公里，拉伸放松</div>
+                        </div>
+                        <div class="activity-actions">
+                            <button title="编辑">&#9998;</button>
+                            <button title="删除">&#10005;</button>
+                        </div>
+                    </div>
+
+                    <div class="activity-card cat-2">
+                        <div class="activity-info">
+                            <div class="activity-time">09:00 - 11:30</div>
+                            <span class="activity-category cat-2">意识活动</span>
+                            <div class="activity-content">学习全栈开发，了解前端基本概念</div>
+                        </div>
+                        <div class="activity-actions">
+                            <button title="编辑">&#9998;</button>
+                            <button title="删除">&#10005;</button>
+                        </div>
+                    </div>
+
+                    <div class="activity-card cat-3">
+                        <div class="activity-info">
+                            <div class="activity-time">14:00 - 15:00</div>
+                            <span class="activity-category cat-3">精神活动</span>
+                            <div class="activity-content">阅读《心流》第三章，做读书笔记</div>
+                        </div>
+                        <div class="activity-actions">
+                            <button title="编辑">&#9998;</button>
+                            <button title="删除">&#10005;</button>
+                        </div>
+                    </div>
+
+                    <div class="activity-card cat-4">
+                        <div class="activity-info">
+                            <div class="activity-time">16:00 - 18:00</div>
+                            <span class="activity-category cat-4">行为活动</span>
+                            <div class="activity-content">整理房间，打扫卫生</div>
+                        </div>
+                        <div class="activity-actions">
+                            <button title="编辑">&#9998;</button>
+                            <button title="删除">&#10005;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右栏：AI 反思 -->
+            <div class="reflection-section">
+                <h2>AI 每日反思</h2>
+                <div class="reflection-card">
+                    <h4>今日总结</h4>
+                    <p>今天的活动覆盖了四个类别，时间分配较为均衡。上午以学习为主，下午兼顾精神成长和日常事务。</p>
+                    <h4 style="margin-top:20px">深度反思</h4>
+                    <p>今天在学习全栈开发上投入了较多时间，这与你的项目目标高度一致。建议在高强度学习后安排短暂的身心活动来保持精力。晨跑的习惯非常好，继续保持。</p>
+                </div>
+                <button class="btn btn-secondary" style="margin-top:14px; width:100%">重新生成</button>
+            </div>
+
+        </div>
+    </main>
+</body>
+</html>

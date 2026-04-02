@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="journal-card">
+
+    <div class="journal-date">
+        <button class="journal-date-nav" onclick="changeDate(-1)">&larr;</button>
+        <input type="date" class="journal-date-input" id="current-date"
+               value="{{ date }}" onchange="goToDate(this.value)">
+        <button class="journal-date-nav" onclick="changeDate(1)">&rarr;</button>
+    </div>
+
+    <!-- 状态1：开始 -->
+    <div id="review-start">
+        <h1 class="journal-greeting">今天，想聊点什么？</h1>
+        <p class="journal-subtitle">写下你的困惑或想解决的问题，AI 会引导你深入思考</p>
+        <textarea
+            id="problem-input"
+            class="journal-input"
+            rows="5"
+            placeholder="比如：最近总是拖延，明明知道该做却迟迟不动手…"></textarea>
+        <button class="journal-btn" id="start-btn" onclick="startReview()">开始对话</button>
+    </div>
+
+    <!-- 状态2：对话中 -->
+    <div id="review-chat" style="display:none">
+        <div class="chat-topic" id="chat-problem-label"></div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-row">
+            <textarea
+                id="chat-input"
+                class="chat-input"
+                rows="2"
+                placeholder="说说你的想法…"
+                onkeydown="handleChatKey(event)"></textarea>
+            <button class="chat-send-btn" onclick="sendMessage()">发送</button>
+        </div>
+        <div class="chat-footer">
+            <span class="chat-hint">Ctrl + Enter 发送</span>
+            <button class="chat-finish-btn" id="finish-btn" onclick="finishReview()">生成建议 →</button>
+        </div>
+    </div>
+
+    <!-- 状态3：建议结果 -->
+    <div id="review-result" style="display:none">
+        <div class="result-header">
+            <div class="result-title">为你生成的建议</div>
+            <div class="result-problem" id="result-problem"></div>
+        </div>
+        <div class="result-tags" id="result-tags"></div>
+        <hr class="result-divider">
+        <div class="solution-content" id="solution-content"></div>
+        <button class="btn-restart" onclick="resetReview()">开始新的对话</button>
+    </div>
+
+</div>
+
+<script>
+const currentDate = '{{ date }}';
+document.addEventListener('DOMContentLoaded', () => {
+    loadExistingReview(currentDate);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="form-container">
+    <h2>{{ '编辑活动' if activity else '添加活动' }}</h2>
+    <form id="activity-form" onsubmit="return submitActivity(event)">
+        <input type="hidden" id="activity-id" value="{{ activity.id if activity else '' }}">
+
+        <label>日期</label>
+        <input type="date" id="f-date" value="{{ activity.date if activity else date }}" required>
+
+        <label>开始时间</label>
+        <input type="time" id="f-start" value="{{ activity.time_start if activity else '' }}" required>
+
+        <label>结束时间</label>
+        <input type="time" id="f-end" value="{{ activity.time_end if activity else '' }}" required>
+
+        <label>活动类别</label>
+        <div class="category-radios">
+            {% for cat in categories %}
+            <label class="radio-card cat-{{ loop.index }}">
+                <input type="radio" name="category" value="{{ cat }}"
+                    {{ 'checked' if activity and activity.category == cat else ('checked' if loop.first and not activity else '') }}>
+                <span>{{ cat }}</span>
+            </label>
+            {% endfor %}
+        </div>
+
+        <label>活动内容</label>
+        <textarea id="f-content" rows="4" placeholder="描述你的活动..." required>{{ activity.content if activity else '' }}</textarea>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">保存</button>
+            <a href="/" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
