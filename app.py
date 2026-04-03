@@ -125,6 +125,37 @@ def history():
     return render_template('history.html', sessions=sessions)
 
 
+@app.route('/weekly')
+@login_required
+def weekly():
+    return render_template('weekly.html')
+
+
+@app.route('/api/weekly-summary', methods=['POST'])
+@login_required
+def api_weekly_summary():
+    """接收前端传来的本周会话数据，生成周报"""
+    data = request.get_json()
+    sessions_data = data.get('sessions', [])
+
+    if not sessions_data:
+        return jsonify({'error': '本周还没有对话记录，先去聊聊吧'}), 400
+
+    try:
+        from ai_service import generate_weekly_summary
+        from rag_service import retrieve_knowledge, retrieve_history
+
+        # 从所有会话的问题中提取关键词，匹配知识库
+        all_problems = ' '.join([s.get('problem', '') for s in sessions_data])
+        knowledge = retrieve_knowledge(all_problems)
+        hist = retrieve_history(current_user.id, date.today().isoformat())
+
+        summary = generate_weekly_summary(sessions_data, knowledge, hist)
+        return jsonify({'summary': summary})
+    except Exception as e:
+        return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
+
+
 # --- API Routes ---
 
 @app.route('/api/activities', methods=['GET'])

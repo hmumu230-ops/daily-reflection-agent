@@ -141,6 +141,71 @@ def generate_solution(activities, messages, user_problem, knowledge_context, his
     )
 
 
+# ===== 每周总结 =====
+
+SYSTEM_PROMPT_WEEKLY = """你是一位专业的心理咨询师和人生教练，擅长从一周的对话记录中识别深层模式。
+
+你会收到用户一周内所有的反思对话（包括他们提出的问题、和AI的对话过程、最终的建议）。
+
+请从以下维度分析这一周：
+
+1. 情绪轨迹
+   回顾这一周用户的情绪变化，从周一到周日经历了怎样的起伏，用温暖的语言描述
+
+2. 行动复盘
+   用户这周实际做了什么、面对了哪些挑战、有哪些值得肯定的地方
+
+3. 核心模式
+   从多次对话中提炼出反复出现的思维模式或行为习惯（好的和需要改善的都说）
+
+4. 趋势预判
+   基于这周的表现和历史规律，如果保持当前状态，下周大概率会怎样。同时给出一个更好的可能性——如果做出某个小改变的话
+
+5. 下周一件事
+   只给一条最关键的建议，下周只需要做好这一件事就够了
+
+格式要求：
+- 不要使用任何 markdown 格式（不要用 ** # - 等符号）
+- 用自然段落书写，像一位老朋友写的信
+- 每个部分用标题和空行隔开
+- 语气温暖真诚，像在咖啡馆跟朋友聊天
+- 用中文回答"""
+
+
+def generate_weekly_summary(sessions_data, knowledge_context='', history_context=''):
+    """生成每周总结"""
+    parts = ['以下是用户这一周的所有反思对话记录：\n']
+
+    for session in sessions_data:
+        date = session.get('date', '未知日期')
+        problem = session.get('problem', '')
+        status = session.get('status', '')
+
+        parts.append(f'--- {date} ---')
+        parts.append(f'问题：{problem}')
+
+        if session.get('history'):
+            for msg in session['history']:
+                role = '用户' if msg['role'] == 'user' else 'AI'
+                parts.append(f'{role}：{msg["content"]}')
+
+        if session.get('solution'):
+            parts.append(f'最终建议：{session["solution"]}')
+
+        parts.append('')
+
+    if knowledge_context:
+        parts.append(f'\n相关知识背景：\n{knowledge_context}')
+    if history_context:
+        parts.append(f'\n历史数据：\n{history_context}')
+
+    return _call(
+        system_prompt=SYSTEM_PROMPT_WEEKLY,
+        user_content='\n'.join(parts),
+        max_tokens=3000
+    )
+
+
 # ===== 保留旧功能（日常反思、趋势分析）=====
 
 def generate_daily_reflection(activities):

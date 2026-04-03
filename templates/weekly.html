@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="journal-card">
+    <div class="weekly-header">
+        <button class="journal-date-nav" onclick="changeWeek(-1)">&larr;</button>
+        <span class="weekly-range" id="week-range"></span>
+        <button class="journal-date-nav" onclick="changeWeek(1)">&rarr;</button>
+    </div>
+
+    <h1 class="journal-greeting">每周回顾</h1>
+    <p class="journal-subtitle" id="weekly-subtitle">回顾这一周的情绪、行动与成长</p>
+
+    <!-- 本周对话概览 -->
+    <div id="weekly-sessions" class="weekly-sessions"></div>
+
+    <!-- 生成按钮 -->
+    <div id="weekly-action">
+        <button class="journal-btn" id="weekly-btn" onclick="generateWeekly()">生成本周总结</button>
+    </div>
+
+    <!-- 总结结果 -->
+    <div id="weekly-result" style="display:none">
+        <hr class="result-divider">
+        <div class="solution-content" id="weekly-content"></div>
+    </div>
+</div>
+
+<script>
+let weekOffset = 0;
+
+function getWeekRange(offset) {
+    const now = new Date();
+    const day = now.getDay() || 7; // 周日=7
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - day + 1 + offset * 7);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const fmt = d => d.toISOString().split('T')[0];
+    return { start: fmt(monday), end: fmt(sunday) };
+}
+
+function changeWeek(delta) {
+    weekOffset += delta;
+    renderWeekly();
+}
+
+function renderWeekly() {
+    const range = getWeekRange(weekOffset);
+    document.getElementById('week-range').textContent = range.start + ' ~ ' + range.end;
+
+    // 从 localStorage 找本周的会话
+    const all = getAllSessions();
+    const weekSessions = [];
+    for (const [date, session] of Object.entries(all)) {
+        if (date >= range.start && date <= range.end) {
+            weekSessions.push({ date, ...session });
+        }
+    }
+    weekSessions.sort((a, b) => a.date.localeCompare(b.date));
+
+    const container = document.getElementById('weekly-sessions');
+
+    if (weekSessions.length === 0) {
+        container.innerHTML = '<div class="weekly-empty">这周还没有对话记录</div>';
+        document.getElementById('weekly-btn').disabled = true;
+        document.getElementById('weekly-btn').textContent = '暂无数据';
+    } else {
+        container.innerHTML = weekSessions.map(s => `
+            <div class="weekly-session-item">
+                <span class="weekly-session-date">${s.date}</span>
+                <span class="weekly-session-problem">${escapeHtml(s.problem || '')}</span>
+                <span class="history-status ${s.status === 'completed' ? 'completed' : 'in-progress'}">
+                    ${s.status === 'completed' ? '已完成' : '进行中'}
+                </span>
+            </div>
+        `).join('');
+        document.getElementById('weekly-btn').disabled = false;
+        document.getElementById('weekly-btn').textContent = '生成本周总结';
+    }
+
+    // 检查是否已有缓存的周报
+    const cachedKey = 'weekly_' + range.start;
+    const cached = localStorage.getItem(cachedKey);
+    if (cached) {
+        document.getElementById('weekly-result').style.display = 'block';
+        document.getElementById('weekly-content').innerHTML = renderText(cached);
+        document.getElementById('weekly-btn').textContent = '重新生成';
+    } else {
+        document.getElementById('weekly-result').style.display = 'none';
+    }
+}
+
+async function generateWeekly() {
+    const range = getWeekRange(weekOffset);
+    const all = getAllSessions();
+    const weekSessions = [];
+    for (const [date, session] of Object.entries(all)) {
+        if (date >= range.start && date <= range.end) {
+            weekSessions.push({ date, ...session });
+        }
+    }
+
+    if (weekSessions.length === 0) return;
+
+    const btn = document.getElementById('weekly-btn');
+    btn.textContent = '分析中，请稍候…';
+    btn.disabled = true;
+
+    try {
+        const res = await apiFetch('/api/weekly-summary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessions: weekSessions })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+            alert(data.error);
+            btn.textContent = '生成本周总结';
+            btn.disabled = false;
+            return;
+        }
+
+        // 缓存周报
+        localStorage.setItem('weekly_' + range.start, data.summary);
+
+        document.getElementById('weekly-result').style.display = 'block';
+        document.getElementById('weekly-content').innerHTML = renderText(data.summary);
+        btn.textContent = '重新生成';
+        btn.disabled = false;
+    } catch (err) {
+        alert('网络错误，请重试');
+        btn.textContent = '生成本周总结';
+        btn.disabled = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', renderWeekly);
+</script>
+{% endblock %}

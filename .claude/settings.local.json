@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from models import init_db; init_db\\(\\)\")",
+      "Bash(python app.py)",
+      "Bash(git -C \"C:/Users/29980/Desktop/每日反思智能体\" log --oneline -10)",
+      "Bash(git:*)",
+      "Bash(railway --version)",
+      "Bash(railway whoami:*)",
+      "mcp__windows-mcp__Screenshot",
+      "mcp__windows-mcp__App",
+      "mcp__windows-mcp__Wait",
+      "mcp__windows-mcp__Click",
+      "mcp__windows-mcp__Type",
+      "mcp__windows-mcp__Snapshot",
+      "WebFetch(domain:daily-reflection-agent.onrender.com)"
+    ]
+  }
+}
