@@ -15,6 +15,22 @@ from config import SECRET_KEY
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
+import time
+BOOT_TIME = str(int(time.time()))
+
+
+@app.after_request
+def add_no_cache(response):
+    if 'text/html' in response.content_type:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+    return response
+
+
+@app.context_processor
+def inject_cache_bust():
+    return {'cache_bust': BOOT_TIME}
+
 # --- Flask-Login ---
 
 login_manager = LoginManager()
