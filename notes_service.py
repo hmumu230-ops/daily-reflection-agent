@@ -13,9 +13,20 @@ import xml.etree.ElementTree as ET
 from config import GITHUB_TOKEN, GITHUB_REPO, NOTES_DIR
 
 
+def _is_valid_token(token):
+    """检查 token 是否像一个有效的 GitHub token（纯 ASCII）"""
+    if not token:
+        return False
+    try:
+        token.encode('ascii')
+        return token.startswith(('ghp_', 'gho_', 'github_pat_'))
+    except UnicodeEncodeError:
+        return False
+
+
 def _github_headers():
     headers = {'Accept': 'application/vnd.github.v3+json'}
-    if GITHUB_TOKEN:
+    if _is_valid_token(GITHUB_TOKEN):
         headers['Authorization'] = f'token {GITHUB_TOKEN}'
     return headers
 
@@ -125,7 +136,7 @@ def fetch_notes_for_date(date_str: str) -> list:
     获取某天的所有笔记文件，返回 [{name, text}, ...]
     date_str 格式: '2026-04-09'
     """
-    if not GITHUB_TOKEN:
+    if not _is_valid_token(GITHUB_TOKEN):
         return []
 
     items = _api_get(f'{NOTES_DIR}/{date_str}')
