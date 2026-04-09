@@ -10,3 +10,8 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 QIANWEN_API_KEY = os.environ.get('QIANWEN_API_KEY', '')
 AI_MODEL = 'qwen-plus'
 AI_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+
+# GitHub 笔记同步配置
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+GITHUB_REPO  = os.environ.get('GITHUB_REPO', 'hmumu230-ops/daily-reflection-agent')
+NOTES_DIR    = 'notes'   # 仓库内的笔记文件夹名

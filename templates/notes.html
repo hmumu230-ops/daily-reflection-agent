@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="journal-card">
+    <div class="journal-date">
+        <button class="journal-date-nav" onclick="changeNoteDate(-1)">&larr;</button>
+        <input type="date" class="journal-date-input" id="note-date" value="{{ date }}" onchange="goToNoteDate(this.value)">
+        <button class="journal-date-nav" onclick="changeNoteDate(1)">&rarr;</button>
+    </div>
+
+    <h1 class="journal-greeting">学习笔记</h1>
+    <p class="journal-subtitle" id="notes-subtitle">查看当天的学习内容与 AI 提炼</p>
+
+    <!-- 加载状态 -->
+    <div id="notes-loading" class="loading" style="display:none">正在读取笔记…</div>
+
+    <!-- 无笔记 -->
+    <div id="notes-empty" style="display:none">
+        <div class="notes-empty-msg">
+            这天还没有笔记<br>
+            <span class="notes-empty-hint">把文件放入桌面「每日笔记」文件夹，同步后即可查看</span>
+        </div>
+    </div>
+
+    <!-- 笔记列表 -->
+    <div id="notes-list" style="display:none"></div>
+
+    <!-- AI 提炼按钮 -->
+    <div id="notes-action" style="display:none">
+        <button class="journal-btn" id="summarize-btn" onclick="summarizeNotes()">AI 提炼总结</button>
+    </div>
+
+    <!-- AI 摘要 -->
+    <div id="notes-summary" style="display:none">
+        <hr class="result-divider">
+        <div class="notes-summary-header">AI 提炼</div>
+        <div class="solution-content" id="summary-content"></div>
+    </div>
+</div>
+
+<!-- 最近笔记日历 -->
+<div class="journal-card" style="margin-top: 20px;">
+    <h2 class="notes-section-title">最近 30 天笔记</h2>
+    <div id="notes-calendar" class="notes-calendar"></div>
+</div>
+
+<script>
+const noteDate = document.getElementById('note-date').value;
+
+function changeNoteDate(delta) {
+    const input = document.getElementById('note-date');
+    const d = new Date(input.value);
+    d.setDate(d.getDate() + delta);
+    goToNoteDate(d.toISOString().split('T')[0]);
+}
+
+function goToNoteDate(date) {
+    // 更新 URL 参数但保持在 /notes 页面
+    const input = document.getElementById('note-date');
+    input.value = date;
+    loadNotes(date);
+}
+
+async function loadNotes(date) {
+    const loading = document.getElementById('notes-loading');
+    const empty = document.getElementById('notes-empty');
+    const list = document.getElementById('notes-list');
+    const action = document.getElementById('notes-action');
+    const summary = document.getElementById('notes-summary');
+
+    loading.style.display = 'block';
+    empty.style.display = 'none';
+    list.style.display = 'none';
+    action.style.display = 'none';
+    summary.style.display = 'none';
+
+    try {
+        const res = await apiFetch('/api/notes/' + date);
+        const data = await res.json();
+
+        loading.style.display = 'none';
+
+        if (!data.notes || data.notes.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+
+        // 渲染笔记列表
+        list.innerHTML = data.notes.map(note => `
+            <div class="note-item">
+                <div class="note-item-header">
+                    <span class="note-item-icon">${getFileIcon(note.name)}</span>
+                    <span class="note-item-name">${escapeHtml(note.name)}</span>
+                </div>
+                <div class="note-item-content">${escapeHtml(note.text)}</div>
+            </div>
+        `).join('');
+        list.style.display = 'block';
+        action.style.display = 'block';
+
+        // 如果已有摘要，直接显示
+        if (data.summary) {
+            summary.style.display = 'block';
+            document.getElementById('summary-content').innerHTML = renderText(data.summary);
+            document.getElementById('summarize-btn').textContent = '重新提炼';
+        } else {
+            document.getElementById('summarize-btn').textContent = 'AI 提炼总结';
+        }
+    } catch (err) {
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        document.querySelector('.notes-empty-msg').textContent = '读取失败，请检查 GitHub Token 配置';
+    }
+}
+
+async function summarizeNotes() {
+    const btn = document.getElementById('summarize-btn');
+    const date = document.getElementById('note-date').value;
+
+    btn.textContent = 'AI 分析中，请稍候…';
+    btn.disabled = true;
+
+    try {
+        const res = await apiFetch('/api/notes/' + date + '/summarize', {
+            method: 'POST'
+        });
+        const data = await res.json();
+
+        if (data.error) {
+            alert(data.error);
+            btn.textContent = 'AI 提炼总结';
+            btn.disabled = false;
+            return;
+        }
+
+        document.getElementById('notes-summary').style.display = 'block';
+        document.getElementById('summary-content').innerHTML = renderText(data.summary);
+        btn.textContent = '重新提炼';
+        btn.disabled = false;
+    } catch (err) {
+        alert('网络错误，请重试');
+        btn.textContent = 'AI 提炼总结';
+        btn.disabled = false;
+    }
+}
+
+async function loadRecentDates() {
+    try {
+        const res = await apiFetch('/api/notes/dates');
+        const summaries = await res.json();
+        const calendar = document.getElementById('notes-calendar');
+
+        if (!summaries || summaries.length === 0) {
+            calendar.innerHTML = '<div class="notes-empty-hint">暂无笔记记录</div>';
+            return;
+        }
+
+        calendar.innerHTML = summaries.map(s => `
+            <a class="notes-date-chip ${s.date === noteDate ? 'active' : ''}" onclick="goToNoteDate('${s.date}')">
+                <span class="notes-date-chip-date">${s.date.slice(5)}</span>
+            </a>
+        `).join('');
+    } catch (err) {
+        // 静默失败
+    }
+}
+
+function getFileIcon(name) {
+    const n = name.toLowerCase();
+    if (n.endsWith('.md')) return '\ud83d\udcdd';
+    if (n.endsWith('.txt')) return '\ud83d\udcc4';
+    if (n.endsWith('.xmind') || n.endsWith('.mm')) return '\ud83e\udde0';
+    return '\ud83d\udcc1';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadNotes(noteDate);
+    loadRecentDates();
+});
+</script>
+{% endblock %}

@@ -8,7 +8,8 @@ from models import (
     get_activity_by_id, update_activity, delete_activity,
     save_reflection, get_reflection,
     create_review_session, add_review_message, get_review_session, complete_review_session,
-    get_all_review_sessions
+    get_all_review_sessions,
+    save_note_summary, get_note_summary, get_note_summaries_by_range
 )
 from config import SECRET_KEY
 
@@ -160,13 +161,19 @@ def api_weekly_summary():
     try:
         from ai_service import generate_weekly_summary
         from rag_service import retrieve_knowledge, retrieve_history
+        from notes_service import fetch_notes_for_week
 
         # 从所有会话的问题中提取关键词，匹配知识库
         all_problems = ' '.join([s.get('problem', '') for s in sessions_data])
         knowledge = retrieve_knowledge(all_problems)
         hist = retrieve_history(current_user.id, date.today().isoformat())
 
-        summary = generate_weekly_summary(sessions_data, knowledge, hist)
+        # 获取本周笔记
+        today = date.today()
+        week_start = (today - timedelta(days=today.weekday())).isoformat()
+        notes_by_date = fetch_notes_for_week(week_start, today.isoformat())
+
+        summary = generate_weekly_summary(sessions_data, knowledge, hist, notes_by_date)
         return jsonify({'summary': summary})
     except Exception as e:
         return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
@@ -359,6 +366,57 @@ def api_review_get(day):
     if not session:
         return jsonify(None)
     return jsonify(session)
+
+
+@app.route('/notes')
+@login_required
+def notes():
+    today = date.today().isoformat()
+    return render_template('notes.html', date=today)
+
+
+@app.route('/api/notes/<day>', methods=['GET'])
+@login_required
+def api_get_notes(day):
+    """获取某天的笔记原文列表"""
+    from notes_service import fetch_notes_for_date
+    notes_list = fetch_notes_for_date(day)
+    summary = get_note_summary(current_user.id, day)
+    return jsonify({
+        'notes': notes_list,
+        'summary': summary['summary'] if summary else None
+    })
+
+
+@app.route('/api/notes/<day>/summarize', methods=['POST'])
+@login_required
+def api_summarize_notes(day):
+    """AI 提炼当天笔记"""
+    from notes_service import fetch_notes_for_date
+    notes_list = fetch_notes_for_date(day)
+    if not notes_list:
+        return jsonify({'error': f'{day} 没有找到笔记文件'}), 404
+    try:
+        from ai_service import generate_note_summary
+        summary = generate_note_summary(notes_list)
+        save_note_summary(current_user.id, day, summary)
+        return jsonify({'summary': summary})
+    except Exception as e:
+        return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
+
+
+@app.route('/api/notes/dates', methods=['GET'])
+@login_required
+def api_notes_dates():
+    """获取有笔记摘要的日期列表"""
+    date_from = request.args.get('from', '')
+    date_to = request.args.get('to', '')
+    if not date_from or not date_to:
+        today = date.today()
+        date_to = today.isoformat()
+        date_from = (today - timedelta(days=30)).isoformat()
+    summaries = get_note_summaries_by_range(current_user.id, date_from, date_to)
+    return jsonify(summaries)
 
 
 @app.route('/api/trends', methods=['GET'])

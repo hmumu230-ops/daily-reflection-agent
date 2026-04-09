@@ -141,6 +141,37 @@ def generate_solution(activities, messages, user_problem, knowledge_context, his
     )
 
 
+# ===== 笔记提炼 =====
+
+SYSTEM_PROMPT_NOTE_SUMMARY = """你是一位善于整理知识的学习助手。用户今天学习了一些内容，以原始笔记的形式提供给你。
+
+你的任务是：
+1. 核心要点：提炼今天学到的最重要的 3-5 个知识点（用简洁的一句话概括每条）
+2. 知识地图：这些知识点之间有什么联系？构成了什么样的体系？
+3. 延伸思考：基于今天所学，你认为有哪 1-2 个值得进一步探索的方向？
+4. 一句话总结：用一句话概括今天的学习主题
+
+格式要求：
+- 不要使用任何 markdown 格式（不要用 ** # - 等符号）
+- 用自然的中文段落，像老师整理板书一样清晰
+- 忠实于原始内容，不添加原文中没有的概念
+- 用中文回答"""
+
+
+def generate_note_summary(notes: list) -> str:
+    """对当天笔记进行提炼总结，不修改原始内容"""
+    parts = ['以下是用户今天的原始学习笔记：\n']
+    for note in notes:
+        parts.append(f'--- 文件：{note["name"]} ---')
+        parts.append(note['text'])
+        parts.append('')
+    return _call(
+        system_prompt=SYSTEM_PROMPT_NOTE_SUMMARY,
+        user_content='\n'.join(parts),
+        max_tokens=1500
+    )
+
+
 # ===== 每周总结 =====
 
 SYSTEM_PROMPT_WEEKLY = """你是一位专业的心理咨询师和人生教练，擅长从一周的对话记录中识别深层模式。
@@ -172,7 +203,7 @@ SYSTEM_PROMPT_WEEKLY = """你是一位专业的心理咨询师和人生教练，
 - 用中文回答"""
 
 
-def generate_weekly_summary(sessions_data, knowledge_context='', history_context=''):
+def generate_weekly_summary(sessions_data, knowledge_context='', history_context='', notes_by_date=None):
     """生成每周总结"""
     parts = ['以下是用户这一周的所有反思对话记录：\n']
 
@@ -193,6 +224,14 @@ def generate_weekly_summary(sessions_data, knowledge_context='', history_context
             parts.append(f'最终建议：{session["solution"]}')
 
         parts.append('')
+
+    if notes_by_date:
+        parts.append('\n\n以下是用户这一周的学习笔记（请结合笔记内容分析知识成长轨迹）：\n')
+        for date_str, notes in sorted(notes_by_date.items()):
+            parts.append(f'--- {date_str} 的笔记 ---')
+            for note in notes:
+                parts.append(f'[{note["name"]}]\n{note["text"][:1000]}')
+            parts.append('')
 
     if knowledge_context:
         parts.append(f'\n相关知识背景：\n{knowledge_context}')

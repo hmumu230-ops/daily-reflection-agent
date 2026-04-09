@@ -111,6 +111,16 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         ''')
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS note_summaries (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                date TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(user_id, date)
+            )
+        ''')
         cur.close()
         conn.commit()
     else:
@@ -156,6 +166,14 @@ def init_db():
                 role TEXT NOT NULL,
                 content TEXT NOT NULL,
                 created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS note_summaries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(user_id, date)
             );
         ''')
     conn.close()
@@ -337,5 +355,39 @@ def get_all_review_sessions(user_id):
     rows = _fetchall(conn,
         'SELECT id, date, user_problem, status, created_at FROM review_sessions WHERE user_id = ? ORDER BY date DESC',
         (user_id,))
+    conn.close()
+    return rows
+
+
+# --- Note Summaries ---
+
+def save_note_summary(user_id, date, summary):
+    conn = get_db()
+    if USE_PG:
+        _execute(conn,
+            '''INSERT INTO note_summaries (user_id, date, summary, created_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT (user_id, date) DO UPDATE SET summary=EXCLUDED.summary, created_at=EXCLUDED.created_at''',
+            (user_id, date, summary, datetime.now().isoformat()))
+    else:
+        _execute(conn,
+            'INSERT OR REPLACE INTO note_summaries (user_id, date, summary, created_at) VALUES (?, ?, ?, ?)',
+            (user_id, date, summary, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+
+def get_note_summary(user_id, date):
+    conn = get_db()
+    row = _fetchone(conn, 'SELECT * FROM note_summaries WHERE user_id = ? AND date = ?', (user_id, date))
+    conn.close()
+    return row
+
+
+def get_note_summaries_by_range(user_id, date_from, date_to):
+    conn = get_db()
+    rows = _fetchall(conn,
+        'SELECT * FROM note_summaries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date DESC',
+        (user_id, date_from, date_to))
     conn.close()
     return rows
