@@ -14,28 +14,37 @@ from config import GITHUB_TOKEN, GITHUB_REPO, NOTES_DIR
 
 
 def _is_valid_token(token):
-    """检查 token 是否像一个有效的 GitHub token（纯 ASCII）"""
+    """检查 token 是否为有效的 GitHub token 格式（纯 ASCII）"""
+    if not token:
+        return False
+    token = token.strip()
     if not token:
         return False
     try:
         token.encode('ascii')
-        return token.startswith(('ghp_', 'gho_', 'github_pat_'))
     except UnicodeEncodeError:
         return False
+    return True
 
 
 def _github_headers():
     headers = {'Accept': 'application/vnd.github.v3+json'}
-    if _is_valid_token(GITHUB_TOKEN):
-        headers['Authorization'] = f'token {GITHUB_TOKEN}'
+    token = (GITHUB_TOKEN or '').strip()
+    if _is_valid_token(token):
+        headers['Authorization'] = f'token {token}'
     return headers
 
 
 def _api_get(path):
     url = f'https://api.github.com/repos/{GITHUB_REPO}/contents/{path}'
-    r = requests.get(url, headers=_github_headers(), timeout=10)
+    try:
+        r = requests.get(url, headers=_github_headers(), timeout=10)
+    except Exception as e:
+        print(f'[notes_service] GitHub API error: {e}')
+        return None
     if r.status_code == 200:
         return r.json()
+    print(f'[notes_service] GitHub API {r.status_code} for {path}: {r.text[:200]}')
     return None
 
 
