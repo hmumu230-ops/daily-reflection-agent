@@ -121,6 +121,13 @@ def init_db():
                 UNIQUE(user_id, date)
             )
         ''')
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS user_settings (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id),
+                github_token TEXT,
+                updated_at TEXT NOT NULL
+            )
+        ''')
         cur.close()
         conn.commit()
     else:
@@ -174,6 +181,11 @@ def init_db():
                 summary TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 UNIQUE(user_id, date)
+            );
+            CREATE TABLE IF NOT EXISTS user_settings (
+                user_id INTEGER PRIMARY KEY,
+                github_token TEXT,
+                updated_at TEXT NOT NULL
             );
         ''')
     conn.close()
@@ -382,6 +394,30 @@ def get_note_summary(user_id, date):
     row = _fetchone(conn, 'SELECT * FROM note_summaries WHERE user_id = ? AND date = ?', (user_id, date))
     conn.close()
     return row
+
+
+def save_user_token(user_id, github_token):
+    conn = get_db()
+    now = datetime.now().isoformat()
+    if USE_PG:
+        _execute(conn,
+            '''INSERT INTO user_settings (user_id, github_token, updated_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT (user_id) DO UPDATE SET github_token=EXCLUDED.github_token, updated_at=EXCLUDED.updated_at''',
+            (user_id, github_token, now))
+    else:
+        _execute(conn,
+            'INSERT OR REPLACE INTO user_settings (user_id, github_token, updated_at) VALUES (?, ?, ?)',
+            (user_id, github_token, now))
+    conn.commit()
+    conn.close()
+
+
+def get_user_token(user_id):
+    conn = get_db()
+    row = _fetchone(conn, 'SELECT github_token FROM user_settings WHERE user_id = ?', (user_id,))
+    conn.close()
+    return row['github_token'] if row and row.get('github_token') else None
 
 
 def get_note_summaries_by_range(user_id, date_from, date_to):

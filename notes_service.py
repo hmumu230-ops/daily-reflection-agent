@@ -27,18 +27,18 @@ def _is_valid_token(token):
     return True
 
 
-def _github_headers():
+def _github_headers(override_token=None):
     headers = {'Accept': 'application/vnd.github.v3+json'}
-    token = (GITHUB_TOKEN or '').strip()
+    token = (override_token or GITHUB_TOKEN or '').strip()
     if _is_valid_token(token):
         headers['Authorization'] = f'token {token}'
     return headers
 
 
-def _api_get(path):
+def _api_get(path, token=None):
     url = f'https://api.github.com/repos/{GITHUB_REPO}/contents/{path}'
     try:
-        r = requests.get(url, headers=_github_headers(), timeout=10)
+        r = requests.get(url, headers=_github_headers(token), timeout=10)
     except Exception as e:
         print(f'[notes_service] GitHub API error: {e}')
         return None
@@ -140,15 +140,17 @@ def _extract_content(filename: str, raw: bytes) -> str:
 
 # ===== 对外接口 =====
 
-def fetch_notes_for_date(date_str: str) -> list:
+def fetch_notes_for_date(date_str: str, token: str = None) -> list:
     """
     获取某天的所有笔记文件，返回 [{name, text}, ...]
     date_str 格式: '2026-04-09'
+    token 参数优先于环境变量
     """
-    if not _is_valid_token(GITHUB_TOKEN):
+    effective_token = (token or GITHUB_TOKEN or '').strip()
+    if not _is_valid_token(effective_token):
         return []
 
-    items = _api_get(f'{NOTES_DIR}/{date_str}')
+    items = _api_get(f'{NOTES_DIR}/{date_str}', token=effective_token)
     if not items or not isinstance(items, list):
         return []
 
@@ -172,7 +174,7 @@ def fetch_notes_for_date(date_str: str) -> list:
     return results
 
 
-def fetch_notes_for_week(start_date: str, end_date: str) -> dict:
+def fetch_notes_for_week(start_date: str, end_date: str, token: str = None) -> dict:
     """
     获取一周内所有有笔记的日期，返回 {date: [{name, text}]}
     """
@@ -186,7 +188,7 @@ def fetch_notes_for_week(start_date: str, end_date: str) -> dict:
     d = start
     while d <= end:
         date_str = d.isoformat()
-        notes = fetch_notes_for_date(date_str)
+        notes = fetch_notes_for_date(date_str, token=token)
         if notes:
             result[date_str] = notes
         d += timedelta(days=1)

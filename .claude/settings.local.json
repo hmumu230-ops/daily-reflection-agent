@@ -13,7 +13,17 @@
       "mcp__windows-mcp__Click",
       "mcp__windows-mcp__Type",
       "mcp__windows-mcp__Snapshot",
-      "WebFetch(domain:daily-reflection-agent.onrender.com)"
+      "WebFetch(domain:daily-reflection-agent.onrender.com)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/notes)",
+      "Bash(curl:*)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(notepad:*)",
+      "Bash(gh auth:*)",
+      "Bash(where gh.exe)",
+      "Bash(powershell -Command \"Get-Command gh -ErrorAction SilentlyContinue\")",
+      "Bash(powershell:*)"
     ]
   }
 }

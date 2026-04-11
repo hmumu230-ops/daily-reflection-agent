@@ -9,7 +9,8 @@ from models import (
     save_reflection, get_reflection,
     create_review_session, add_review_message, get_review_session, complete_review_session,
     get_all_review_sessions,
-    save_note_summary, get_note_summary, get_note_summaries_by_range
+    save_note_summary, get_note_summary, get_note_summaries_by_range,
+    save_user_token, get_user_token
 )
 from config import SECRET_KEY
 
@@ -171,7 +172,8 @@ def api_weekly_summary():
         # 获取本周笔记
         today = date.today()
         week_start = (today - timedelta(days=today.weekday())).isoformat()
-        notes_by_date = fetch_notes_for_week(week_start, today.isoformat())
+        user_token = get_user_token(current_user.id)
+        notes_by_date = fetch_notes_for_week(week_start, today.isoformat(), token=user_token)
 
         summary = generate_weekly_summary(sessions_data, knowledge, hist, notes_by_date)
         return jsonify({'summary': summary})
@@ -380,7 +382,8 @@ def notes():
 def api_get_notes(day):
     """获取某天的笔记原文列表"""
     from notes_service import fetch_notes_for_date
-    notes_list = fetch_notes_for_date(day)
+    user_token = get_user_token(current_user.id)
+    notes_list = fetch_notes_for_date(day, token=user_token)
     summary = get_note_summary(current_user.id, day)
     return jsonify({
         'notes': notes_list,
@@ -393,7 +396,8 @@ def api_get_notes(day):
 def api_summarize_notes(day):
     """AI 提炼当天笔记"""
     from notes_service import fetch_notes_for_date
-    notes_list = fetch_notes_for_date(day)
+    user_token = get_user_token(current_user.id)
+    notes_list = fetch_notes_for_date(day, token=user_token)
     if not notes_list:
         return jsonify({'error': f'{day} 没有找到笔记文件'}), 404
     try:
@@ -405,32 +409,49 @@ def api_summarize_notes(day):
         return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
 
 
-@app.route('/api/debug/token-status')
+@app.route('/settings')
 @login_required
-def api_debug_token_status():
-    """临时诊断端点：检查 GITHUB_TOKEN 状态（不暴露值）"""
-    from config import GITHUB_TOKEN, GITHUB_REPO
-    import requests as _req
-    token = GITHUB_TOKEN or ''
-    status = {
-        'token_length': len(token),
-        'token_stripped_length': len(token.strip()),
-        'token_is_ascii': token.isascii() if token else False,
-        'token_prefix': token[:4] if token else '',
-        'repo': GITHUB_REPO,
-    }
-    # 实际调用一次 GitHub API 看看结果
-    headers = {'Accept': 'application/vnd.github.v3+json'}
-    if token.strip():
-        headers['Authorization'] = f'token {token.strip()}'
+def settings_page():
+    existing = get_user_token(current_user.id)
+    has_token = bool(existing)
+    return render_template('settings.html', has_token=has_token)
+
+
+@app.route('/api/settings/token', methods=['POST'])
+@login_required
+def api_save_token():
+    data = request.get_json() or {}
+    token = (data.get('token') or '').strip()
+    if not token:
+        return jsonify({'error': 'token 不能为空'}), 400
     try:
-        r = _req.get(f'https://api.github.com/repos/{GITHUB_REPO}/contents/notes', headers=headers, timeout=10)
-        status['github_api_status'] = r.status_code
-        status['github_api_body'] = r.text[:300]
-        status['rate_limit_remaining'] = r.headers.get('x-ratelimit-remaining')
+        token.encode('ascii')
+    except UnicodeEncodeError:
+        return jsonify({'error': 'token 包含非 ASCII 字符'}), 400
+
+    # 验证 token 有效性
+    from config import GITHUB_REPO
+    import requests as _req
+    try:
+        r = _req.get(
+            f'https://api.github.com/repos/{GITHUB_REPO}/contents/notes',
+            headers={'Accept': 'application/vnd.github.v3+json', 'Authorization': f'token {token}'},
+            timeout=10
+        )
+        if r.status_code not in (200, 404):
+            return jsonify({'error': f'token 验证失败：GitHub 返回 {r.status_code}'}), 400
     except Exception as e:
-        status['github_api_error'] = str(e)
-    return jsonify(status)
+        return jsonify({'error': f'网络错误：{str(e)}'}), 500
+
+    save_user_token(current_user.id, token)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/settings/token', methods=['DELETE'])
+@login_required
+def api_delete_token():
+    save_user_token(current_user.id, '')
+    return jsonify({'ok': True})
 
 
 @app.route('/api/notes/dates', methods=['GET'])

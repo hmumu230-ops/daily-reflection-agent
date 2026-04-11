@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="settings-page">
+    <h1>设置</h1>
+
+    <section class="settings-section">
+        <h2>GitHub 访问令牌</h2>
+        <p class="hint">
+            用于从你的 GitHub 笔记仓库读取学习笔记。令牌只会加密存储在服务器数据库中，不会上传到任何第三方。
+        </p>
+        <p class="hint">
+            生成方式：GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens，
+            对你的笔记仓库授予 <b>Contents: Read</b> 权限即可。
+        </p>
+
+        <div class="token-status">
+            当前状态：
+            {% if has_token %}
+                <span class="status-ok">已配置</span>
+            {% else %}
+                <span class="status-empty">未配置</span>
+            {% endif %}
+        </div>
+
+        <div class="token-form">
+            <input type="password" id="token-input" placeholder="粘贴你的 GitHub token (ghp_... 或 github_pat_...)" autocomplete="off">
+            <button id="save-token-btn" class="primary-btn">保存并验证</button>
+            {% if has_token %}
+            <button id="delete-token-btn" class="danger-btn">删除</button>
+            {% endif %}
+        </div>
+
+        <div id="token-msg" class="token-msg"></div>
+    </section>
+</div>
+
+<script>
+document.getElementById('save-token-btn').addEventListener('click', async () => {
+    const input = document.getElementById('token-input');
+    const msg = document.getElementById('token-msg');
+    const token = input.value.trim();
+    if (!token) {
+        msg.textContent = '请先填写 token';
+        msg.className = 'token-msg error';
+        return;
+    }
+    msg.textContent = '正在验证...';
+    msg.className = 'token-msg';
+    try {
+        const r = await fetch('/api/settings/token', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({token})
+        });
+        const data = await r.json();
+        if (r.ok) {
+            msg.textContent = '保存成功！';
+            msg.className = 'token-msg ok';
+            input.value = '';
+            setTimeout(() => location.reload(), 800);
+        } else {
+            msg.textContent = data.error || '保存失败';
+            msg.className = 'token-msg error';
+        }
+    } catch (e) {
+        msg.textContent = '网络错误：' + e.message;
+        msg.className = 'token-msg error';
+    }
+});
+
+const delBtn = document.getElementById('delete-token-btn');
+if (delBtn) {
+    delBtn.addEventListener('click', async () => {
+        if (!confirm('确定删除已保存的 token？')) return;
+        const r = await fetch('/api/settings/token', {method: 'DELETE'});
+        if (r.ok) location.reload();
+    });
+}
+</script>
+
+<style>
+.settings-page { max-width: 720px; margin: 20px auto; }
+.settings-section { background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.settings-section h2 { margin-top: 0; }
+.hint { color: #666; font-size: 14px; line-height: 1.6; }
+.token-status { margin: 16px 0; font-size: 15px; }
+.status-ok { color: #2e7d32; font-weight: bold; }
+.status-empty { color: #c62828; font-weight: bold; }
+.token-form { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+.token-form input { flex: 1; min-width: 260px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; }
+.primary-btn { background: #1976d2; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+.danger-btn { background: #c62828; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+.token-msg { margin-top: 12px; font-size: 14px; }
+.token-msg.ok { color: #2e7d32; }
+.token-msg.error { color: #c62828; }
+</style>
+{% endblock %}
