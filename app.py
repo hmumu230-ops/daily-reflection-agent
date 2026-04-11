@@ -405,6 +405,34 @@ def api_summarize_notes(day):
         return jsonify({'error': f'AI 服务出错: {str(e)}'}), 500
 
 
+@app.route('/api/debug/token-status')
+@login_required
+def api_debug_token_status():
+    """临时诊断端点：检查 GITHUB_TOKEN 状态（不暴露值）"""
+    from config import GITHUB_TOKEN, GITHUB_REPO
+    import requests as _req
+    token = GITHUB_TOKEN or ''
+    status = {
+        'token_length': len(token),
+        'token_stripped_length': len(token.strip()),
+        'token_is_ascii': token.isascii() if token else False,
+        'token_prefix': token[:4] if token else '',
+        'repo': GITHUB_REPO,
+    }
+    # 实际调用一次 GitHub API 看看结果
+    headers = {'Accept': 'application/vnd.github.v3+json'}
+    if token.strip():
+        headers['Authorization'] = f'token {token.strip()}'
+    try:
+        r = _req.get(f'https://api.github.com/repos/{GITHUB_REPO}/contents/notes', headers=headers, timeout=10)
+        status['github_api_status'] = r.status_code
+        status['github_api_body'] = r.text[:300]
+        status['rate_limit_remaining'] = r.headers.get('x-ratelimit-remaining')
+    except Exception as e:
+        status['github_api_error'] = str(e)
+    return jsonify(status)
+
+
 @app.route('/api/notes/dates', methods=['GET'])
 @login_required
 def api_notes_dates():
