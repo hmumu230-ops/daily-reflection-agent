@@ -435,7 +435,7 @@ def api_save_token():
     try:
         r = _req.get(
             f'https://api.github.com/repos/{GITHUB_REPO}/contents/notes',
-            headers={'Accept': 'application/vnd.github.v3+json', 'Authorization': f'token {token}'},
+            headers={'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Bearer {token}'},
             timeout=10
         )
         if r.status_code not in (200, 404):

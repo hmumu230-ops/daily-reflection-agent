@@ -31,7 +31,7 @@ def _github_headers(override_token=None):
     headers = {'Accept': 'application/vnd.github.v3+json'}
     token = (override_token or GITHUB_TOKEN or '').strip()
     if _is_valid_token(token):
-        headers['Authorization'] = f'token {token}'
+        headers['Authorization'] = f'Bearer {token}'
     return headers
 
 
